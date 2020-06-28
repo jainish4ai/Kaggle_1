@@ -105,16 +105,16 @@ train_labels = y.iloc[train_data.index,:].values.ravel()
 test_features = features[-len(test_data.index):].toarray()
 
 estimators = [
-        ('XGB',XGBClassifier()), 
-        ('RF', RandomForestClassifier()), 
+        ('XGB',XGBClassifier(gamma = 0.0001, learning_rate = 0.01, max_depth = 11, n_estimators = 525, reg_alpha = 0, reg_lambda =  2.45)), 
+        ('RF', RandomForestClassifier(max_depth = 7, max_features = 0.8111111111111111, n_estimators= 225)), 
         ('ABC',AdaBoostClassifier()),
-        ('ET', ExtraTreesClassifier())
+        ('ET', ExtraTreesClassifier(max_depth = 7, n_estimators = 15, max_features=.9166666, min_impurity_decrease=.001))
     ]
 models = [
-    XGBClassifier(), 
+    XGBClassifier(gamma = 0.0001, learning_rate = 0.01, max_depth = 11, n_estimators = 525, reg_alpha = 0, reg_lambda =  2.45), 
     AdaBoostClassifier(), 
-    RandomForestClassifier(),
-    ExtraTreesClassifier(),
+    RandomForestClassifier(max_depth = 7, max_features = 0.8111111111111111, n_estimators= 225),
+    ExtraTreesClassifier(max_depth = 7, n_estimators = 15, max_features=.9166666, min_impurity_decrease=.001),
     VotingClassifier(estimators),
     BaggingClassifier(XGBClassifier())
     ]
@@ -131,7 +131,7 @@ for model in models:
 
 print(results)
 best_model = models[results['Mean Val Score'].argmax()]
-#best_model = models[0]
+best_model = models[4]
 print ('Best Model selected:', type(best_model).__name__)
 best_model.fit(train_features, train_labels)
 predictions = best_model.predict(train_features)
