@@ -104,35 +104,19 @@ train_features = features[train_data.index].toarray()
 train_labels = y.iloc[train_data.index,:].values.ravel()
 test_features = features[-len(test_data.index):].toarray()
 
-estimators = [
-        ('XGB',XGBClassifier()), 
-        ('RF', RandomForestClassifier()), 
-        ('ABC',AdaBoostClassifier()),
-        ('ET', ExtraTreesClassifier())
-    ]
-models = [
-    XGBClassifier(), 
-    AdaBoostClassifier(), 
-    RandomForestClassifier(),
-    ExtraTreesClassifier(),
-    VotingClassifier(estimators),
-    BaggingClassifier(XGBClassifier())
-    ]
+param_grid_RF = {
+    'n_estimators': np.arange(10, 510, 50),
+    'max_depth': np.arange(1,21,4),
+    'min_samples_split': np.linspace(0.1, 1.0, 5),
+    'min_samples_leaf': np.linspace(0.1, 1.0, 5),
+    'max_features': np.linspace(0.1, 0.9, 4)
+    } 
+
+model_selector = GridSearchCV(RandomForestClassifier(random_state=1), param_grid_RF, cv = 5, n_jobs = -1, verbose = True, refit=True)
+model_selector.fit(train_features, train_labels)
 
 
-results = pd.DataFrame(columns=['Model', 'Mean Train Score', 'Mean Val Score'])
-for model in models:
-    cv_results = cross_val_score(model, train_features, train_labels, cv = 5, scoring = 'accuracy', n_jobs= -1)
-    results = results.append(pd.Series({'Model': type(model).__name__,
-                                        'Mean Train Score': model.fit(train_features, train_labels)
-                                        .score(train_features, train_labels),
-                                        'Mean Val Score': cv_results.mean()}),
-                              ignore_index = True)
-
-print(results)
-best_model = models[results['Mean Val Score'].argmax()]
-#best_model = models[0]
-print ('Best Model selected:', type(best_model).__name__)
+best_model = model_selector.best_estimator_
 best_model.fit(train_features, train_labels)
 predictions = best_model.predict(train_features)
 plot_confusion_matrix(best_model, train_features, train_labels)
