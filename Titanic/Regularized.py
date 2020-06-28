@@ -116,7 +116,24 @@ model_selector = GridSearchCV(RandomForestClassifier(random_state=1), param_grid
 model_selector.fit(train_features, train_labels)
 
 
+param_grid_XGB = {"learning_rate": [0.1, 0.01, 0.001],
+               "gamma" : [0.01, 0.1, 0.3, 0.5, 1, 1.5, 2],
+               "max_depth": [2, 4, 7, 10],
+               "colsample_bytree": [0.3, 0.6, 0.8, 1.0],
+               "subsample": [0.2, 0.4, 0.5, 0.6, 0.7],
+               "reg_alpha": [0, 0.5, 1],
+               "reg_lambda": [1, 1.5, 2, 3, 4.5],
+               "min_child_weight": [1, 3, 5, 7],
+               "n_estimators": [100, 250, 500, 1000]
+    } 
+
+model_selector = GridSearchCV(XGBClassifier(random_state=1), param_grid_RF, cv = 5, n_jobs = -1, verbose = True, refit=True)
+model_selector.fit(train_features, train_labels)
+
 best_model = model_selector.best_estimator_
+print(model_selector.best_params_)
+print(model_selector.best_score_)
+
 best_model.fit(train_features, train_labels)
 predictions = best_model.predict(train_features)
 plot_confusion_matrix(best_model, train_features, train_labels)
