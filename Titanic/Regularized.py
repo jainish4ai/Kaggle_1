@@ -130,6 +130,17 @@ param_grid_XGB = {"learning_rate": [0.1, 0.01, 0.001],
 model_selector = GridSearchCV(XGBClassifier(random_state=1), param_grid_RF, cv = 5, n_jobs = -1, verbose = True, refit=True)
 model_selector.fit(train_features, train_labels)
 
+params_ET = {
+    'n_estimators': np.arange(10, 510, 50),
+    'max_depth': np.arange(1,21,4),
+    'min_samples_split': np.linspace(0.1, 1.0, 5),
+    'min_samples_leaf': np.linspace(0.1, 1.0, 5),
+    'max_features': np.linspace(0.1, 0.9, 4)
+    }
+
+model_selector = GridSearchCV(ExtraTreesClassifier(random_state=1), params_ET, cv = 5, n_jobs = -1, verbose = True, refit=True)
+model_selector.fit(train_features, train_labels)
+
 best_model = model_selector.best_estimator_
 print(model_selector.best_params_)
 print(model_selector.best_score_)
