@@ -108,11 +108,13 @@ estimators = [
         ('XGB',XGBClassifier(gamma = 0.0001, learning_rate = 0.01, max_depth = 11, n_estimators = 525, reg_alpha = 0, reg_lambda =  2.45)), 
         ('RF', RandomForestClassifier(max_depth = 7, max_features = 0.8111111111111111, n_estimators= 225)), 
         ('ABC',AdaBoostClassifier()),
-        ('ET', ExtraTreesClassifier(max_depth = 7, n_estimators = 15, max_features=.9166666, min_impurity_decrease=.001))
+        ('ET', ExtraTreesClassifier(max_depth = 7, n_estimators = 15, max_features=.9166666, min_impurity_decrease=.001)),
+        ('GBM', GradientBoostingClassifier())
     ]
 models = [
     XGBClassifier(gamma = 0.0001, learning_rate = 0.01, max_depth = 11, n_estimators = 525, reg_alpha = 0, reg_lambda =  2.45), 
     AdaBoostClassifier(), 
+    GradientBoostingClassifier(),
     RandomForestClassifier(max_depth = 7, max_features = 0.8111111111111111, n_estimators= 225),
     ExtraTreesClassifier(max_depth = 7, n_estimators = 15, max_features=.9166666, min_impurity_decrease=.001),
     VotingClassifier(estimators),
