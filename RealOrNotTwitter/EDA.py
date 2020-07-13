@@ -1,22 +1,75 @@
 import pandas as pd
 import string
+import nltk
+import ekphrasis
 from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer 
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB, CategoricalNB
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import confusion_matrix, plot_confusion_matrix, classification_report
+import matplotlib.pyplot as plt
 import re
-import numpy as np
+from ekphrasis.classes.preprocessor import TextPreProcessor
+from ekphrasis.classes.tokenizer import SocialTokenizer
+from ekphrasis.dicts.emoticons import emoticons
+# from spellchecker import SpellChecker
+
 train = pd.read_csv('data/train.csv')
 train = train.drop_duplicates(['text'])
+test = pd.read_csv('data/test.csv')
 
 stop_words = stopwords.words('english')
-puncs_to_remove = string.punctuation.replace('@', '')
-table = str.maketrans('', '', puncs_to_remove)
+lemmatizer = WordNetLemmatizer()
+
+puncs_to_remove = str.maketrans('', '', string.punctuation)
+
+text_processor = TextPreProcessor(
+    # terms that will be normalized
+    # normalize=['url', 'email', 'percent', 'money', 'phone', 'user',
+    #     'time', 'url', 'date', 'number'],
+    normalize = ['number', 'date', 'time'],
+    # terms that will be annotated
+    # annotate={"hashtag", "allcaps", "elongated", "repeated",
+        # 'emphasis', 'censored'},
+    # annotate = {'hashtag', 'allcaps'},
+    fix_html=True,  # fix HTML tokens
+    
+    # corpus from which the word statistics are going to be used 
+    # for word segmentation 
+    segmenter="twitter", 
+    
+    # corpus from which the word statistics are going to be used 
+    # for spell correction
+    corrector="twitter", 
+    
+    unpack_hashtags=True,  # perform word segmentation on hashtags
+    unpack_contractions=True,  # Unpack contractions (can't -> can not)
+    spell_correct_elong=False,  # spell correction for elongated words
+    
+    # select a tokenizer. You can use SocialTokenizer, or pass your own
+    # the tokenizer, should take as input a string and return a list of tokens
+    tokenizer=SocialTokenizer(lowercase=True).tokenize,
+    
+    # list of dictionaries, for replacing tokens extracted from the text,
+    # with other expressions. You can pass more than one dictionaries.
+    dicts=[emoticons]
+)
 
 def process_text(text):
+    url1 = re.compile(r'https?://\S+|www\.\S+')
+    url2 = re.compile(r'https?://\S+|www\.\S+')
+    text = url1.sub(r'',text)
+    text = url2.sub(r'',text)
+    text = " ".join(text_processor.pre_process_doc(text))
     words = text.split()
-    words = [re.sub(r'^http?:\/\/.*[\r\n]*', '', word) for word in words]
-    words = [word if word == word.upper() else word.lower() for word in words]
     words = [word for word in words if word not in stop_words]
-    words = [word.translate(table) for word in words]
-    return set(words)
+    words = [word.translate(puncs_to_remove) for word in words]
+    words = [word for word in words if word != '']
+    # words = [spell.correction(word) for word in words]
+    return words
 
 def clean_data(dataset):
     dataset['keyword'] = dataset.keyword.fillna('None')
@@ -46,5 +99,6 @@ data.columns = ['Word', 'Target_0', 'Target_1']
 data['Total'] = data['Target_0'] + data['Target_1']
 
 data['Prop'] = data['Target_0']/data['Total']
-temp = data[(data.Prop > .47) & (data.Prop < .53) ]
-temp.sort_values('Total', ascending = False)[:300].Word.values
+temp = data[(data.Prop > .45) & (data.Prop < .55) ]
+temp = temp[temp.Total > 5]
+temp.Word.values

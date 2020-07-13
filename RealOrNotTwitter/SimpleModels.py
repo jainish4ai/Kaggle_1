@@ -1,6 +1,7 @@
 import pandas as pd
 import string
 import nltk
+import ekphrasis
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -11,6 +12,10 @@ from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import re
+from ekphrasis.classes.preprocessor import TextPreProcessor
+from ekphrasis.classes.tokenizer import SocialTokenizer
+from ekphrasis.dicts.emoticons import emoticons
+from spellchecker import SpellChecker
 
 train = pd.read_csv('data/train.csv')
 train = train.drop_duplicates(['text'])
@@ -18,67 +23,86 @@ test = pd.read_csv('data/test.csv')
 
 stop_words = stopwords.words('english')
 lemmatizer = WordNetLemmatizer()
+spell = SpellChecker()
+domain_stop_words = ['us', 'place', 'officers', 'people', 'school', 'streets',
+       'emergency', 'second', 'live', 'set', 'plus', 'sky', '\x89',
+       'cruz', 'outside', 'taking', 'chicago', 'thousands', 'leave',
+       'first', 'year', 'û', 'students', '2', 'blocked', 'among', 'use',
+       'happen', 'sunday', 'another', 'fort', 'property', '3', 'plans',
+       'happened', 'drive', 'b', 'daily', 'could', 'moment', 'study',
+       'remembering', 'cannot', 'family', 'gov', 'via', 'began', 'death',
+       'bit', 'trauma', 'omg', 'house', 'cause', 'call', 'hospital',
+       'ems', 'target', 'crazy', 'ny', '÷', 'said', 'world', 'drunk',
+       'hit', 'must', 'since', 'river', 'national', 'false', 'less',
+       'order', 'mo', 'x', 'queen', 'e', 'points', 'late', 'ûªs',
+       'toddler', 'library', 'sadly', 'tracks', 'lion', 'women', 'truth',
+       'burn', 'trial', 'hunt', 'system', 'burning', 'blamed', 'green',
+       'story', 'civil', 'texas', 'worry', 'shift', 'machine', 'act',
+       'female', 'abuse', 'worst', 'program', 'flames', 'fully', 'hits',
+       'taken', 'dc', 'australia', 'longer', 'usatoday', 'pathogens',
+       'certain', 'problem', 'health', 'lies', 'ft', 'drill', 'concerned',
+       'americans', 'weapons', 'respect', 'ways', 'fine', 'solar', 'told',
+       'mentions', 'stories', 'leaving', 'wall', 'morning', 'associated',
+       'smh', 'looked', 'strike', 'half', 'k', 'kept', 'small', 'calls',
+       'pics', 'picture', 'board', 'pray', 'bombed', 'elephant', 'ground',
+       'mission', 'bells', 'plan', 'ashes', 'five', 'nearby', 'upset',
+       'babies', 'nation', 'co', 'camp', 'progress', 'pro', 'sparked',
+       'keeps', 'parents', 'accidentally', 'ppl', 'stupid', 'seems',
+       'casualty', 'arsenal', 'industry', 'ultimate', 'company', 'felt',
+       'chemical', 'seattle', 'pipe', 'landslide', 'tent', 'force',
+       'heads', 'rescued', 'loss', 'mr', 'phoenix', 'release', 'blast',
+       'especially', 'plague', 'workers', 'evening', 'enugu', 'articles',
+       'derail', 'recovery', 'updates', 'chief', 'message', 'jam',
+       'information', 'seismic', 'jst', 'senator', 'engulfed', 'hijacker',
+       'hijacking', 'held', 'radiation', 'reactor', 'larger', 'snowstorm']
 
-domain_stopwords =['', 'A', 'emergency', '4', '1', '2015',
-       'another', '\x89Û' , 'live', 'said', 'set', 'house', 'IN',
-        'call', 'im','rt','lt',
-        'must', 'use', 'out', 'days', 'nearby', 'half', '20',
-        'second', 'place', '12', 'order', 'plans',
-       'daily', 'crazy', 'worst', 'happened', 'united', '13', 'green',
-       'thousands', 'america', 'ready', 'drive', 'true', 'ppl', 'taking',
-       'USA', 'told', 'moment', 'parents', 'small', 'information', 'lies',
-       'act', 'fully', 'phoenix', '24', 'wall', 'company', 'account',
-       'industry', 'mountain', 'five', 'sky', 'bit', 'board', 'late',
-       'release', 'drunk', 'keeps', 'seems', 'states', 'picture',
-       'pathogens', 'system', 'points', '26', 'ft', 'stupid', 'cancer',
-       'began', 'heres', 'streets', 'WAR', 'sadly', 'held',
-       'queen', 'machine', 'fox', 'lion', 'created', 'solar', 'nature',
-       'economic', 'progress', 'iphone', 'down', 'bells', 'ultimate',
-       'church', 'remembering', 'price', 'certain', 'larger', 'salem',
-       'waste', 'hunters', 'blamed', 'everyday', 'concerned', 'festival',
-       'looked', 'loss', 'tech', 'heads', 'roads', 'jam',
-       'especially', 'sparked', 'mentions', 'MS', 'greatest', 'largest',
-       'aussie', 'wealth', 'roll', 'have', 'predict', 'dinner', 'fired',
-       'reward', 'base', 'exist', 'extra', 'sexual', '5000', '45',
-       'decisions', 'daughters', 'just', 'values', 'minds', 'bath',
-       'wire', 'bell', 'recover', 'recently', 'network', 'innocent',
-       'estate', 'jordan', 'vets', '3rd', 'concern',
-       'fund', 'b4', 'factory', 'apocalyptic', 'blame', 'tons', 'clouds',
-       'challenge', 'how', 'transit', 'psychiatric', 'humidity', 'DOWN',
-       'am', 'materials', 'van', 'starter', 'mess', 'utter', 'fly',
-       'childhood', 'wicked', 'prompts', '5pm', 'WERE', 'upper', 'leg',
-       'attacking', 'mike', 'TIME', 'FIRST', 'passed', 'groups', 'recall',
-       'HOW', 'outdoor', '48', 'birds', 'AREA', 'GPS', 'biological',
-       'boot', 'pipe', 'revealed', 'correction', 'crowd', 'ep', 'houston',
-       'posted', 'goal', 'dress', 'sources', 'concerns', 'finds', 'mo',
-       'targeting', 'charts', 'hosting', 'gift', 'angeles', 'los',
-       'fergusons', 'ian', 'richard', 'orange', 'ANOTHER', 'click',
-       'crater', 'prince', 'abuse', 'leaves', 'speaking', '3G',
-       'produced', 'realise', '360wisenews', 'thru', 'you\x89ûªve',
-       'accused', 'sanctions', 'willing', 'previous', 'private',
-       'reveals', 'apple', 'ability', '125', 'springs', 'kendall',
-       'yellow', 'vietnamese', '@originalfunko', 'mouth', 'wud', 'chick',
-       'cain', 'electricity', 'cafe', 'jenner', 'surfers', 'philadelphia',
-       'incase', 're', 'hysteria', 'shanghai', 'performing', 'freeway',
-       'tidal', 'henry', 'shutdown', 'emerges', 'summit', 'personnel',
-       'mohammed', 'mentioned', 'census', 'acquire', 'tanzania',
-       'nowhere', 'CANNOT', 'FTE', '@spencers', 'BUDDYS', 'glenn', 'DONE',
-       'sunnis', 'wi', 'matches', '64', 'vital', 'federal', 'bn', '1979',
-       'JOKE', 'testing', 'language', 'journeys']
+puncs_to_remove = str.maketrans('', '', string.punctuation)
 
-puncs_to_remove = string.punctuation
-table = str.maketrans('', '', puncs_to_remove)
+text_processor = TextPreProcessor(
+    # terms that will be normalized
+    # normalize=['url', 'email', 'percent', 'money', 'phone', 'user',
+    #     'time', 'url', 'date', 'number'],
+    normalize = ['number', 'date', 'time'],
+    # terms that will be annotated
+    # annotate={"hashtag", "allcaps", "elongated", "repeated",
+        # 'emphasis', 'censored'},
+    # annotate = {'hashtag', 'allcaps'},
+    fix_html=True,  # fix HTML tokens
+    
+    # corpus from which the word statistics are going to be used 
+    # for word segmentation 
+    segmenter="twitter", 
+    
+    # corpus from which the word statistics are going to be used 
+    # for spell correction
+    corrector="twitter", 
+    
+    unpack_hashtags=True,  # perform word segmentation on hashtags
+    unpack_contractions=True,  # Unpack contractions (can't -> can not)
+    spell_correct_elong=False,  # spell correction for elongated words
+    
+    # select a tokenizer. You can use SocialTokenizer, or pass your own
+    # the tokenizer, should take as input a string and return a list of tokens
+    tokenizer=SocialTokenizer(lowercase=True).tokenize,
+    
+    # list of dictionaries, for replacing tokens extracted from the text,
+    # with other expressions. You can pass more than one dictionaries.
+    dicts=[emoticons]
+)
 
 def process_text(text):
+    url1 = re.compile(r'https?://\S+|www\.\S+')
+    url2 = re.compile(r'https?://\S+|www\.\S+')
+    text = url1.sub(r'',text)
+    text = url2.sub(r'',text)
+    text = " ".join(text_processor.pre_process_doc(text))
     words = text.split()
-    words = [re.sub(r'^http?:\/\/.*[\r\n]*', '', word) for word in words]
-    words = [re.sub(r'^https?:\/\/.*[\r\n]*', '', word) for word in words]
-    words = [word.lower() for word in words]
-    words = [lemmatizer.lemmatize(word) for word in words]
     words = [word for word in words if word not in stop_words]
-    words = [word.translate(table) for word in words]
-    words = [word for word in words if word.strip() not in domain_stopwords]
-    return str.join(' ',words)
+    words = [word.translate(puncs_to_remove) for word in words]
+    words = [word for word in words if word != '']
+    words = [word for word in words if word not in domain_stop_words]
+    # words = [spell.correction(word) for word in words]
+    return str.join(' ',words).strip()
 
 def clean_data(dataset):
     dataset['keyword'] = dataset.keyword.fillna('None')
@@ -86,20 +110,18 @@ def clean_data(dataset):
     return dataset
 
 train=clean_data(train)
+train = train.drop_duplicates(subset = ['text1'])
 test=clean_data(test)
 transformer = ColumnTransformer(
     [
-       # ('keyword', OneHotEncoder(drop = 'first')),
-      # ('text', CountVectorizer(), 'text1'),
       ('tf_idf', TfidfVectorizer(lowercase=False, stop_words=None, ngram_range=(1,1)), 'text1')
-     ])
+    ])
 
 train_features = transformer.fit_transform(train[['text1']]).toarray()
 train_labels = train['target'].values.tolist()
 models = [
             MultinomialNB(),
-            BernoulliNB(),
-          # CategoricalNB()
+            # BernoulliNB(),
          ]
 
 results = pd.DataFrame(columns=['Model', 'Train Score', 'Mean Val Score'])
@@ -116,9 +138,6 @@ print(results)
 best_model = models[results['Mean Val Score'].argmax()]
 print ('Best Model selected:', type(best_model).__name__)
 best_model.fit(train_features, train_labels)
-# result = best_model.predict_proba(train_features)
-# result = result[:,0 ] - result[:,1]
-# predictions = (result < -.1).astype('int')
 predictions = best_model.predict(train_features)
 plot_confusion_matrix(best_model, train_features, train_labels)
 plt.show()
