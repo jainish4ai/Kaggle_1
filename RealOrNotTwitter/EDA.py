@@ -99,6 +99,6 @@ data.columns = ['Word', 'Target_0', 'Target_1']
 data['Total'] = data['Target_0'] + data['Target_1']
 
 data['Prop'] = data['Target_0']/data['Total']
-temp = data[(data.Prop > .45) & (data.Prop < .55) ]
+temp = data[(data.Prop > .47) & (data.Prop < .55) ]
 temp = temp[temp.Total > 5]
 temp.Word.values

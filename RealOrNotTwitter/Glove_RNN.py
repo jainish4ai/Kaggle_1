@@ -66,14 +66,14 @@ domain_stop_words = ['us', 'place', 'officers', 'people', 'school', 'streets',
 puncs_to_remove = str.maketrans('', '', string.punctuation)
 
 text_processor = TextPreProcessor(
+    omit = ['user','email','url'],
     # terms that will be normalized
     # normalize=['url', 'email', 'percent', 'money', 'phone', 'user',
     #     'time', 'url', 'date', 'number'],
-    # normalize = ['number', 'date', 'time'],
+    normalize = ['number'],
     # terms that will be annotated
     # annotate={"hashtag", "allcaps", "elongated", "repeated",
         # 'emphasis', 'censored'},
-    # annotate = {'hashtag', 'allcaps'},
     fix_html=True,  # fix HTML tokens
     
     # corpus from which the word statistics are going to be used 
@@ -86,7 +86,7 @@ text_processor = TextPreProcessor(
     
     unpack_hashtags=True,  # perform word segmentation on hashtags
     unpack_contractions=True,  # Unpack contractions (can't -> can not)
-    spell_correct_elong=False,  # spell correction for elongated words
+    spell_correct_elong=True,  # spell correction for elongated words
     
     # select a tokenizer. You can use SocialTokenizer, or pass your own
     # the tokenizer, should take as input a string and return a list of tokens
@@ -98,16 +98,12 @@ text_processor = TextPreProcessor(
 )
 
 def process_text(text):
-    url1 = re.compile(r'https?://\S+|www\.\S+')
-    url2 = re.compile(r'https?://\S+|www\.\S+')
-    text = url1.sub(r'',text)
-    text = url2.sub(r'',text)
-    text = " ".join(text_processor.pre_process_doc(text))
-    words = text.split()
-    words = [word for word in words if word not in stop_words]
+    words = text_processor.pre_process_doc(text)
+    # words = [word for word in words if not word.startswith('@')]
+    # words = [word for word in words if word not in stop_words]
     words = [word.translate(puncs_to_remove) for word in words]
     words = [word for word in words if word != '']
-    words = [word for word in words if word not in domain_stop_words]
+    # words = [word for word in words if word not in domain_stop_words]
     # words = [spell.correction(word) for word in words]
     return str.join(' ',words).strip()
 
@@ -134,10 +130,8 @@ X_train = pad_sequences(X_train, padding='post', maxlen=maxlen)
 X_test = pad_sequences(X_test, padding='post', maxlen=maxlen)
 word_index=tokenizer.word_index
 
-
-
 embedding_dict={}
-with open('/Users/jainish/Embeddings/glove.6B/glove.6B.200d.txt','r') as f:
+with open('/Users/jainish/Embeddings/glove.6B/glove.6B.300d.txt','r') as f:
     for line in f:
         values=line.split()
         word=values[0]
@@ -146,7 +140,7 @@ with open('/Users/jainish/Embeddings/glove.6B/glove.6B.200d.txt','r') as f:
 f.close()
 
 vocab_size=len(word_index)+1
-embedding_matrix=np.zeros((vocab_size,200))
+embedding_matrix=np.zeros((vocab_size,300))
 
 for word,i in tqdm(word_index.items()):
     if i > vocab_size:
@@ -157,26 +151,30 @@ for word,i in tqdm(word_index.items()):
         embedding_matrix[i]=emb_vec
         
 model = keras.Sequential([
-        keras.layers.Embedding(vocab_size,200,embeddings_initializer=Constant(embedding_matrix),
-                   input_length=maxlen,trainable=False),
-        # keras.layers.Dropout(0.3),
-        keras.layers.Bidirectional(keras.layers.LSTM(128)),
-        # keras.layers.Dropout(0.3),
-        keras.layers.Dense(64),
+        keras.layers.Embedding(vocab_size,300,embeddings_initializer=Constant(embedding_matrix),
+                   input_length=maxlen,trainable=True),
+        # keras.layers.Dropout(0.2),
+        keras.layers.Bidirectional(keras.layers.LSTM(128, return_sequences=False)),
+        keras.layers.Dropout(0.4),
+        keras.layers.Dense(128, activation = 'relu'),
+        keras.layers.Dropout(0.4),
         keras.layers.Dense(1, activation = 'sigmoid')
     ]
     )
 
 
 print(model.summary())
-model.compile(loss = 'binary_crossentropy', optimizer = keras.optimizers.Adam(learning_rate=0.00005), metrics = ['accuracy'])
+model.compile(loss = 'binary_crossentropy', optimizer = keras.optimizers.Adam(learning_rate=0.00002), metrics = ['accuracy'])
+checkpoint = keras.callbacks.ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True)
 
-model.fit(X_train, train.target, epochs =15, validation_split=.2, batch_size=128)
+model.fit(X_train, train.target, epochs =25, validation_split=.2, batch_size=128, callbacks=[checkpoint])
 
+model.load_weights('best_model.h5')
 predictions = np.round(model.predict(X_train)).astype('int').ravel()
 incorrect_predictions = train[predictions != train.target]
 plt.show()
 print (classification_report(train.target, predictions))
+
 
 predictions = np.round(model.predict(X_test)).astype('int64').ravel()
 
