@@ -66,7 +66,7 @@ domain_stop_words = ['us', 'place', 'officers', 'people', 'school', 'streets',
 puncs_to_remove = str.maketrans('', '', string.punctuation)
 
 text_processor = TextPreProcessor(
-    omit = ['user','email','url'],
+    # omit = ['user','email','url'],
     # terms that will be normalized
     # normalize=['url', 'email', 'percent', 'money', 'phone', 'user',
     #     'time', 'url', 'date', 'number'],
@@ -98,8 +98,12 @@ text_processor = TextPreProcessor(
 )
 
 def process_text(text):
+    url1 = re.compile(r'https?://\S+|www\.\S+')
+    url2 = re.compile(r'https?://\S+|www\.\S+')
+    text = url1.sub(r'',text)
+    text = url2.sub(r'',text)
     words = text_processor.pre_process_doc(text)
-    # words = [word for word in words if not word.startswith('@')]
+    words = [word for word in words if not word.startswith('@')]
     # words = [word for word in words if word not in stop_words]
     words = [word.translate(puncs_to_remove) for word in words]
     words = [word for word in words if word != '']
@@ -164,7 +168,7 @@ model = keras.Sequential([
 
 
 print(model.summary())
-model.compile(loss = 'binary_crossentropy', optimizer = keras.optimizers.Adam(learning_rate=0.00002), metrics = ['accuracy'])
+model.compile(loss = 'binary_crossentropy', optimizer = keras.optimizers.Adam(learning_rate=0.00007), metrics = ['accuracy'])
 checkpoint = keras.callbacks.ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True)
 
 model.fit(X_train, train.target, epochs =25, validation_split=.2, batch_size=128, callbacks=[checkpoint])
