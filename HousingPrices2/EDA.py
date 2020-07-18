@@ -4,9 +4,59 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import PowerTransformer
 
+pd.set_option("display.precision", 4)
 train_data = pd.read_csv('data/train.csv')
+
 test_data = pd.read_csv('data/test.csv')
 data = train_data.append(test_data)
+
+# data[['GarageCars']] = data['GarageCars'].fillna(data['GarageCars'].mode().values[0])
+data[['TotalBsmtSF']] = data['TotalBsmtSF'].fillna(data['TotalBsmtSF'].median())
+data[['GarageArea']] = data['GarageArea'].fillna(data['GarageArea'].median())
+data[['MasVnrArea']] = data['MasVnrArea'].fillna(0)
+data[['MasVnrAreaMask']] = (data[['MasVnrArea']] != 0).astype('int')
+data[['BsmtFinSF1']] = data['BsmtFinSF1'].fillna(0)
+data[['LotFrontage']] = data['LotFrontage'].fillna(0)
+data[['BsmtFullBath']] = data[['BsmtFullBath']].replace(2,1)
+data[['BsmtFullBath']] = data[['BsmtFullBath']].replace(3,1)
+data[['BsmtFullBath']] = data[['BsmtFullBath']].fillna(0)
+data[['BsmtUnfSF']] = data[['BsmtUnfSF']].fillna(0)
+data[['KitchenAbvGr']] = data[['KitchenAbvGr']].replace(0,1)
+data[['KitchenAbvGr']] = data[['KitchenAbvGr']].replace(3,2)
+data[['BsmtCond']] = data['BsmtCond'].fillna(data['BsmtCond'].mode().values[0])
+data[['BsmtExposure']] = data['BsmtExposure'].fillna(data['BsmtExposure'].mode().values[0])
+data[['BsmtFinType1']] = data['BsmtFinType1'].fillna(data['BsmtFinType1'].mode().values[0])
+data[['BsmtQual']] = data['BsmtQual'].fillna(data['BsmtQual'].mode().values[0])
+data[['Electrical']] = data['Electrical'].fillna(data['Electrical'].mode().values[0])
+data[['Exterior1st']] = data['Exterior1st'].fillna(data['Exterior1st'].mode().values[0])
+data[['Exterior2nd']] = data['Exterior2nd'].fillna(data['Exterior2nd'].mode().values[0])
+data[['GarageFinish']] = data['GarageFinish'].fillna(data['GarageFinish'].mode().values[0])
+data[['GarageType']] = data['GarageType'].fillna(data['GarageType'].mode().values[0])
+data[['KitchenQual']] = data['KitchenQual'].fillna(data['KitchenQual'].mode().values[0])
+data[['MSZoning']] = data['MSZoning'].fillna(data['MSZoning'].mode().values[0])
+data[['MasVnrType']] = data['MasVnrType'].fillna(data['MasVnrType'].mode().values[0])
+data[['SaleType']] = data['SaleType'].fillna(data['SaleType'].mode().values[0])
+data['TotalSF'] = data['TotalBsmtSF'] + data['1stFlrSF'] + data['2ndFlrSF']
+data['TotalPorchSF'] = data['ScreenPorch'] + data['OpenPorchSF'] + data['EnclosedPorch'] + data['3SsnPorch'] + data['WoodDeckSF']
+data['TotalBsmtFinSF'] = data['BsmtFinSF1'] + data['BsmtFinSF2'] + data['BsmtUnfSF']
+data['YrSold'] = data['YrSold'] - 2000
+
+
+# Compute the correlation matrix
+corr = train_data.corr()
+
+# Generate a mask for the upper triangle
+mask = np.triu(np.ones_like(corr, dtype=np.bool))
+
+# Set up the matplotlib figure
+f, ax = plt.subplots(figsize=(11, 9))
+
+# Generate a custom diverging colormap
+cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+# Draw the heatmap with the mask and correct aspect ratio
+sns.heatmap(corr, mask=mask, cmap=cmap,
+            square=True, linewidths=.5)
 
 data[['BsmtFullBath']] = data[['BsmtFullBath']].replace(2,1)
 data[['BsmtFullBath']] = data[['BsmtFullBath']].replace(3,1)
@@ -22,15 +72,17 @@ cat_columns
 num_columns = train_data.select_dtypes('number').columns.sort_values()
 data[num_columns].describe()
 
-col_name = 'SaleType'
-
+col_name = 'BsmtFinSF2'
+data['TotalB'] = data['HalfBath'] + data['FullBath']
+train_data['TotalB'] = train_data['HalfBath'] + train_data['FullBath']
 # train_data[col_name]=train_data[col_name].fillna('O')
 
-train_data[col_name].isna().sum()
+data[col_name].isna().sum()
 (data[col_name] == 0).isna().sum()
 data[col_name].describe()
+
 data[col_name].value_counts(dropna = False)
-train_data[col_name].sort_values(ascending=False)[0:10]
+train_data[col_name].sort_values(ascending=True)[0:10]
 
 
 sns.boxplot(x=train_data[col_name], y=train_data.SalePrice)

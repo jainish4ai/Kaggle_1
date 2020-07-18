@@ -4,11 +4,9 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, QuantileTransformer, PowerTransformer
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.kernel_ridge import KernelRidge
-import xgboost as xgb
-import lightgbm as lgb
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_validate, GridSearchCV
 from sklearn.feature_selection import SelectFromModel, chi2, f_regression, SelectPercentile, mutual_info_classif, RFE
 
 pd.set_option("display.precision", 4)
@@ -29,7 +27,6 @@ data[['GarageArea']] = data['GarageArea'].fillna(data['GarageArea'].median())
 data[['MasVnrArea']] = data['MasVnrArea'].fillna(0)
 data[['MasVnrAreaMask']] = (data[['MasVnrArea']] != 0).astype('int')
 data[['BsmtFinSF1']] = data['BsmtFinSF1'].fillna(0)
-data[['BsmtFinSF2']] = data['BsmtFinSF2'].fillna(0)
 data[['LotFrontage']] = data['LotFrontage'].fillna(0)
 data[['BsmtFullBath']] = data[['BsmtFullBath']].replace(2,1)
 data[['BsmtFullBath']] = data[['BsmtFullBath']].replace(3,1)
@@ -68,7 +65,6 @@ num_columns = ['GrLivArea', 'TotalBsmtSF', 'YearRemodAdd', 'GarageArea','YearBui
                'MasVnrArea','TotalPorchSF','WoodDeckSF', 'BsmtFinSF1','TotalBsmtFinSF',
                'LotArea', 'TotalSF']
 
-data.isna().sum()
 transformers = []
 for column in cat_columns:
     transformers.append((column, OneHotEncoder(drop = 'first'), [column]))
@@ -84,51 +80,45 @@ features = column_transformer.fit_transform(X)
 train_features = features[:len(train_data)].toarray()
 train_labels = np.log(data[:len(train_data)].SalePrice)
 
-# model_selector = SelectPercentile(f_regression, 100)
-# model_selector = SelectFromModel(Lasso(alpha = 0.000302, selection = 'random'), 200)
-model_selector = RFE(Ridge(alpha=  3.473684210526316, solver = 'sparse_cg'), 150)
-train_features = model_selector.fit_transform(train_features, train_labels)
-models = [
-    # LinearRegression(),
-    # Ridge(alpha=  3.473684210526316, solver = 'sparse_cg'),
-    # Lasso(alpha = 0.00021836734693877552, selection = 'random', max_iter=1e5),
-    # SVR(C = 0.06736842105263158, kernel = 'linear'),
-    # KernelRidge(alpha=0.6, kernel='polynomial', degree=2, coef0=2.5),
-    xgb.XGBRegressor(),
-    lgb.LGBMRegressor()
-    # KNeighborsRegressor()
-    ]
 
-estimators = []
-for model in models:
-    estimators.append((type(model).__name__, model))
+# params_svr = {
+#     'kernel': ['poly', 'rbf', 'sigmoid', 'linear'],
+#     'C': np.linspace(.05,.08, 20),
+#     # 'coef0' : np.linspace(.0000, .0001, 5)
+#     }
 
+# model_selector = GridSearchCV(SVR(), params_svr, cv = 5, n_jobs = -1, verbose = True, refit=True)
 
-results = pd.DataFrame(columns=['Model', 'Fit Time', 'Train MSE', 'Train R2', 'Val MSE', 'Val R2'])
-for model in models:
-    cv_results = cross_validate(model, train_features, train_labels, cv = 5, 
-                                scoring = ['neg_mean_squared_error', 'r2'],
-                                n_jobs= -1, return_train_score = True)
-    results = results.append(pd.Series({'Model': type(model).__name__,
-                                        'Fit Time': cv_results['fit_time'].mean(),
-                                        'Train MSE': np.sqrt(np.abs(cv_results['train_neg_mean_squared_error'].mean())),
-                                        'Train R2': cv_results['train_r2'].mean(),
-                                        'Val MSE': np.sqrt(np.abs(cv_results['test_neg_mean_squared_error'].mean())),
-                                        'Val R2': cv_results['test_r2'].mean()}),
-                             ignore_index = True)
+# params_ridge = {
+#     'alpha': np.linspace(3,4, 20),
+#     'solver':['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga']
+#     }
+# model_selector = GridSearchCV(Ridge(), params_ridge, cv = 5, n_jobs = -1, verbose = True, refit=True)
 
-print(results)
+# params_lasso = {
+#     'alpha': np.linspace(.0001,.0003, 50),
+#     'selection':['cyclic', 'random']
+# }
+# model_selector = GridSearchCV(Lasso(), params_lasso, cv = 5, n_jobs = -1, verbose = True, refit=True)
 
+params_kernel_ridge = {
+    'alpha': np.linspace(.001,.01, 10),
+    'gamma': np.linspace(.001,.01, 10),
+    'coef0': np.linspace(.001,.01, 10)
+}
+model_selector = GridSearchCV(KernelRidge(), params_kernel_ridge, cv = 5, n_jobs = -1, verbose = True, refit=True)
 
+result = model_selector.fit(train_features, train_labels)
 
-best_model = models[results['Val MSE'].argmin()]
+best_model = model_selector.best_estimator_
+print(model_selector.best_params_)
+print(model_selector.best_score_)
 
 print ('Best Model selected:', type(best_model).__name__)
 best_model.fit(train_features, train_labels)
 predictions = best_model.predict(train_features)
-np.isnan(features[-len(test_data):].toarray()).sum(axis = 1)
-test_features = model_selector.transform(features[-len(test_data):])
-# test_features = features[-len(test_data):]
+
+test_features = features[-len(test_data):]
 predictions = np.exp(best_model.predict(test_features))
 
 output = pd.DataFrame({'Id': test_data.iloc[:,0], 'SalePrice': predictions})
