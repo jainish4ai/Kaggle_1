@@ -1,65 +1,77 @@
 import pandas as pd
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 
 train = pd.read_csv('data/train_sessions.csv')
 
-temp = train.head()
+time_cols = ['time'+str(i) for i in range(1,11)]
+for i in range(1,11):
+    time_col = 'time'+str(i)
+    train[time_col] = pd.to_datetime(train[time_col])
+    train['hr'+str(i)] = train[time_col].dt.hour
+Alice = train[train.target == 1]
+Others = train[train.target == 0]
+
+plt.hist(Alice[['hr'+str(i) for i in range(1,11)]].values.ravel())
+np.unique(Alice[['hr'+str(i) for i in range(1,11)]].values)
+
+site_cols = ['site'+str(i) for i in range(1,11)]
+Alice[site_cols].isna().sum(axis = 0)/len(Alice)
+Others[site_cols].isna().sum(axis = 0)/len(Others)
 sites = pd.Series()
-temp.info()
 
 groups = []
 for i in range(1,11):
     group = train.groupby('site' + str(i)).target.mean()
-    sites = sites.append(pd.Series(group.index.astype('int64')))
+    sites = sites.append(pd.Series(group.index))
     groups.append(group)
 
 sites = np.sort(sites.unique())
 
-transformed_df = pd.DataFrame(index = sites.astype('int64'))
+transformed_df = pd.DataFrame(index = sites)
 
 for i, group in enumerate(groups):
     transformed_df[str(i)] = group
     
-sites_data = transformed_df.sum(axis = 1)
+sites_data = transformed_df.mean(axis = 1)
 
-Alice_sites = sites_data[sites_data == 1].index
-Other_sites = sites_data[sites_data == 0].index
-Alice_site = sites_data.iloc[Alice_sites]
-for i in range(1, 11):
-    print('Processing Col:' + str(i))
-    train['site' + str(i)] = train['site' + str(i)].replace(Alice_sites, 50000)
+Alice_sites = sites_data[sites_data == 1]
+Other_sites = sites_data[sites_data == 0]
+# for i in range(1, 11):
+#     print('Processing Col:' + str(i))
+#     train['site' + str(i)] = train['site' + str(i)].replace(Alice_sites, 50000)
     
     
     
-for i in range(1, 11):
-    print('Processing Col:' + str(i))
-    train['site' + str(i)] = train['site' + str(i)].replace(Other_sites, 100000)
+# for i in range(1, 11):
+#     print('Processing Col:' + str(i))
+#     train['site' + str(i)] = train['site' + str(i)].replace(Other_sites, 100000)
     
-train.to_csv('transformed_data.csv', index=False)
+# train.to_csv('transformed_data.csv', index=False)
 
-test = pd.read_csv('data/test_sessions.csv')
-for i in range(1, 11):
-    print('Processing Col:' + str(i))
-    test['site' + str(i)] = test['site' + str(i)].replace(Alice_sites, 50000)
+# test = pd.read_csv('data/test_sessions.csv')
+# for i in range(1, 11):
+#     print('Processing Col:' + str(i))
+#     test['site' + str(i)] = test['site' + str(i)].replace(Alice_sites, 50000)
     
-for i in range(1, 11):
-    print('Processing Col:' + str(i))
-    test['site' + str(i)] = test['site' + str(i)].replace(Other_sites, 100000)
+# for i in range(1, 11):
+#     print('Processing Col:' + str(i))
+#     test['site' + str(i)] = test['site' + str(i)].replace(Other_sites, 100000)
     
-test.to_csv('test_transformed_data.csv', index=False)
+# test.to_csv('test_transformed_data.csv', index=False)
 
-import pickle
+# import pickle
 
-with open('data/site_dic.pkl', 'rb') as f:
-    data = pickle.load(f)
+# with open('data/site_dic.pkl', 'rb') as f:
+#     data = pickle.load(f)
     
-sites_df = pd.DataFrame([data.keys(), data.values()]).transpose()
-sites_df.columns = ['site', 'index']
-sites_df = sites_df.sort_values('index').set_index('index')
-sites_df.to_csv('site_data.csv', index=False)
+# sites_df = pd.DataFrame([data.keys(), data.values()]).transpose()
+# sites_df.columns = ['site', 'index']
+# sites_df = sites_df.sort_values('index').set_index('index')
+# sites_df.to_csv('site_data.csv', index=False)
 
-train = pd.read_csv('data/train_sessions.csv')
+# train = pd.read_csv('data/train_sessions.csv')
 
 
 #DATA PREPARATION

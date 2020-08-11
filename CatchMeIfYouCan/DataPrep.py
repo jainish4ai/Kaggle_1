@@ -18,7 +18,7 @@ def transform_df(df):
     def in_office_hours(x):
         if pd.isnull(x):
             return -1
-        elif x.hour >= 9 and x.hour <=18:
+        elif x.hour in [9, 12, 13, 15, 16, 17, 18]:
             return 1
         else:
             return 0
